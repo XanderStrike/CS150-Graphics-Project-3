@@ -298,14 +298,23 @@ static void drawScene() {
 
   // draw blocks
   // ==========
-  MVM = invEyeRbt * g_objectRbt;
+  MVM = invEyeRbt * (g_objectRbt * Matrix4::makeScale(Cvec3(1,2,1)));
   NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
   safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
   safe_glUniform1i(curSS.h_uTexUnit0, 1); // texture unit 1 for cube
   g_cube->draw(curSS);
 
-  // TODO: draw more blocks
+  Cvec3 translations[4] = {Cvec3(0, 0, -2), Cvec3(0, 0, 2), Cvec3(2, 0, 0), Cvec3(-2, 0, 0)};
+
+  for (int i = 0; i < 4; i++) {
+    MVM = invEyeRbt * (g_objectRbt * Matrix4::makeTranslation(translations[i]));
+    NMVM = normalMatrix(MVM);
+    sendModelViewNormalMatrix(curSS, MVM, NMVM);
+    safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
+    safe_glUniform1i(curSS.h_uTexUnit0, 1); // texture unit 1 for cube
+    g_cube->draw(curSS);
+  }
 
   // TODO: draw their shadows
   
