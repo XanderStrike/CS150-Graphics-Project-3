@@ -68,6 +68,7 @@ static bool g_mouseClickDown = false;    // is the mouse button pressed
 static bool g_mouseLClickButton, g_mouseRClickButton, g_mouseMClickButton;
 static int g_mouseClickX, g_mouseClickY; // coordinates for mouse click event
 static int g_activeShader = 0;
+static int g_move = 0;
 
 struct ShaderState {
   GlProgram program;
@@ -373,10 +374,14 @@ static void motion(const int x, const int y) {
     m = Matrix4::makeTranslation(Cvec3(0, 0, -dy) * 0.01);
   }
 
-  if (g_mouseClickDown) {
+  if (g_mouseClickDown && g_move == 0) {
 	  a =  transFact(g_objectRbt)*linFact(g_eyeRbt);
 	  g_objectRbt = a * m * inv(a) * g_objectRbt;
 	  glutPostRedisplay(); // we always redraw if we changed the scene
+  } else if (g_mouseClickDown && g_move == 1) {
+    a =  transFact(g_lightRbt)*linFact(g_eyeRbt);
+    g_lightRbt = a * m * inv(a) * g_lightRbt;
+    glutPostRedisplay(); // we always redraw if we changed the scene
   }
 
   g_mouseClickX = x;
@@ -438,6 +443,10 @@ static void keyboard(const unsigned char key, const int x, const int y) {
 		 cout << "Using diffuse texture shader." << endl;
 		  break;
     }
+    break;
+  case 'o':
+    g_move = (g_move + 1) % 2;
+    cout << "Switched object control." << endl;
     break;
   }
   glutPostRedisplay();
