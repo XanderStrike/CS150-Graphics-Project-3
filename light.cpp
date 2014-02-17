@@ -206,7 +206,7 @@ struct Geometry {
 };
 
 // Vertex buffer and index buffer associated with the ground and cube geometry
-static shared_ptr<Geometry> g_ground, g_cube;
+static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 
 // --------- Scene
 
@@ -240,7 +240,16 @@ static void initCubes() {
   g_cube.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
 }
 
-// TODO: add a function for the sphere (sun) geometry
+static void initSpheres() { //why the fuck does this segfault
+  int ibLen, vbLen;
+  getSphereVbIbLen(1, 1, vbLen, ibLen);
+
+  vector<VertexPNX> vtx(vbLen);
+  vector<unsigned short> idx(ibLen);
+
+  makeSphere(1, 1, 1, vtx.begin(), idx.begin());
+  g_sphere.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
+}
 
 // takes a projection matrix and send to the the shaders
 static void sendProjectionMatrix(const ShaderState& SS, const Matrix4& projMatrix) {
@@ -281,6 +290,7 @@ static void drawScene() {
   const Cvec3 eyeLight = Cvec3(invEyeRbt * g_lightRbt * Cvec4(0, 0, 0, 1)); // g_light position in eye coordinates
 
   const ShaderState& curSS = *g_shaderStates[g_activeShader]; // alias for currently selected shader
+  const ShaderState& sunSS = *g_shaderStates[0];
 
   // draw ground
   // ===========
@@ -316,10 +326,20 @@ static void drawScene() {
     g_cube->draw(curSS);
   }
 
+  // draw sun
+  // ==========
+  glUseProgram(sunSS.program); // select shader we want to use
+  sendProjectionMatrix(sunSS, projmat); // send projection matrix to shader
+  safe_glUniform3f(sunSS.h_uLight, eyeLight[0], eyeLight[1], eyeLight[2]);
+  MVM = invEyeRbt * g_lightRbt;
+  NMVM = normalMatrix(MVM);
+  sendModelViewNormalMatrix(sunSS, MVM, NMVM);
+  safe_glUniform3f(sunSS.h_uColor, 1.0, 0.5, 0.0);
+  safe_glUniform1i(sunSS.h_uTexUnit0, 1); // texture unit 1 for cube
+  g_cube->draw(sunSS);
+
   // TODO: draw their shadows
   
-  // TODO: draw a sun
-
 }
 
 static void display() {
