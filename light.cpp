@@ -62,6 +62,8 @@ static const float g_frustFar = -50.0;    // far plane
 static const float g_groundY = 0.0;       // y coordinate of the ground
 static const float g_groundSize = 40.0;   // half the ground length
 
+static float zoom = 1.0;
+
 static int g_windowWidth = 512;
 static int g_windowHeight = 512;
 static bool g_mouseClickDown = false;    // is the mouse button pressed
@@ -281,7 +283,7 @@ static void updateFrustFovY() {
 
 static Matrix4 makeProjectionMatrix() {
   return Matrix4::makeProjection(
-           g_frustFovY, g_windowWidth / static_cast <double> (g_windowHeight),
+           g_frustFovY / zoom, g_windowWidth / static_cast <double> (g_windowHeight),
            g_frustNear, g_frustFar);
 }
 
@@ -340,7 +342,7 @@ static void drawScene() {
 
   Cvec4 shadowcoords = shadowtranslation * object_point;
 
-  MVM = invEyeRbt * (Matrix4::makeTranslation(Cvec3(shadowcoords(0), 0, shadowcoords(2))) * Matrix4::makeScale(Cvec3(2, 0.1, 2)));
+  MVM = invEyeRbt * (Matrix4::makeTranslation(Cvec3(shadowcoords(0), 0, shadowcoords(2))) * Matrix4::makeScale(Cvec3(1, 0.1, 1)));
   NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
   safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
@@ -472,6 +474,14 @@ static void keyboard(const unsigned char key, const int x, const int y) {
   case 'o':
     g_move = (g_move + 1) % 2;
     cout << "Switched object control." << endl;
+    break;
+  case '=':
+    cout << "Zooming in." << endl;
+    zoom += 0.1;
+    break;
+  case '-':
+    cout << "Zooming out." << endl;
+    zoom -= 0.1;
     break;
   }
   glutPostRedisplay();
