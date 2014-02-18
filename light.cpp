@@ -291,11 +291,9 @@ static void drawScene() {
   const Cvec3 eyeLight = Cvec3(invEyeRbt * g_lightRbt * Cvec4(0, 0, 0, 1)); // g_light position in eye coordinates
 
   const ShaderState& curSS = *g_shaderStates[g_activeShader]; // alias for currently selected shader
-  const ShaderState& sunSS = *g_shaderStates[0];
 
   // draw ground
   // ===========
-  //
   glUseProgram(curSS.program); // select shader we want to use
   sendProjectionMatrix(curSS, projmat); // send projection matrix to shader
   safe_glUniform3f(curSS.h_uLight, eyeLight[0], eyeLight[1], eyeLight[2]); // diffuse shaders need light position
@@ -309,7 +307,7 @@ static void drawScene() {
 
   // draw blocks
   // ==========
-  MVM = invEyeRbt * (g_objectRbt * Matrix4::makeScale(Cvec3(1,2,1)));
+  MVM = invEyeRbt * (g_objectRbt * Matrix4::makeScale(Cvec3(2,2,2)));
   NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
   safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
@@ -327,8 +325,34 @@ static void drawScene() {
     g_cube->draw(curSS);
   }
 
+  // draw shadows
+  // ==========
+
+  Matrix4 shadowtranslation;
+  shadowtranslation(0,0) = g_lightRbt(1, 3);
+  shadowtranslation(0,1) = -g_lightRbt(0, 3);
+  shadowtranslation(2,1) = -g_lightRbt(2, 3);
+  shadowtranslation(2,2) = g_lightRbt(1, 3);
+  shadowtranslation(3,1) = -1;
+  shadowtranslation(3,3) = g_lightRbt(1, 3);
+
+  MVM = invEyeRbt * (g_objectRbt;
+  NMVM = normalMatrix(MVM);
+  sendModelViewNormalMatrix(curSS, MVM, NMVM);
+  safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
+  safe_glUniform1i(curSS.h_uTexUnit0, 1); // texture unit 1 for cube
+  g_cube->draw(curSS);
+
+
+  // maybe draw a square for the shadow of each face of the boxes
+  // how is this possible if you can only draw boxes
+
+  // how am i supposed to have the first idea how to do this
+
+
   // draw sun
   // ==========
+  const ShaderState& sunSS = *g_shaderStates[0];
   glUseProgram(sunSS.program); // select shader we want to use
   sendProjectionMatrix(sunSS, projmat); // send projection matrix to shader
   safe_glUniform3f(sunSS.h_uLight, eyeLight[0], eyeLight[1], eyeLight[2]);
@@ -337,10 +361,7 @@ static void drawScene() {
   sendModelViewNormalMatrix(sunSS, MVM, NMVM);
   safe_glUniform3f(sunSS.h_uColor, 1.0, 0.5, 0.0);
   safe_glUniform1i(sunSS.h_uTexUnit0, 1); // texture unit 1 for cube
-  g_cube->draw(sunSS);
-
-  // TODO: draw their shadows
-  
+  g_cube->draw(sunSS);  
 }
 
 static void display() {
