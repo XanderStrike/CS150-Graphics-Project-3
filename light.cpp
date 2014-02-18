@@ -328,6 +328,8 @@ static void drawScene() {
   // draw shadows
   // ==========
 
+  Cvec4 object_point = Cvec4(g_objectRbt(0,3), g_objectRbt(1,3), g_objectRbt(2,3), 1);
+
   Matrix4 shadowtranslation;
   shadowtranslation(0,0) = g_lightRbt(1, 3);
   shadowtranslation(0,1) = -g_lightRbt(0, 3);
@@ -336,11 +338,13 @@ static void drawScene() {
   shadowtranslation(3,1) = -1;
   shadowtranslation(3,3) = g_lightRbt(1, 3);
 
-  MVM = invEyeRbt * (g_objectRbt;
+  Cvec4 shadowcoords = shadowtranslation * object_point;
+
+  MVM = invEyeRbt * (Matrix4::makeTranslation(Cvec3(shadowcoords(0), 0, shadowcoords(2))) * Matrix4::makeScale(Cvec3(2, 0.1, 2)));
   NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
-  safe_glUniform1i(curSS.h_uTexUnit0, 1); // texture unit 1 for cube
+  safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
+  safe_glUniform1i(curSS.h_uTexUnit0, 0.5); // texture unit 1 for cube
   g_cube->draw(curSS);
 
 
