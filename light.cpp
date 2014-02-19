@@ -214,8 +214,8 @@ static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 // --------- Scene
 
 static Matrix4 g_eyeRbt = Matrix4::makeTranslation(Cvec3(0.0, 3.25, 10.0));
-static Matrix4 g_objectRbt = Matrix4::makeTranslation(Cvec3(0,2,0));  // object frame matrix
-static Matrix4 g_lightRbt = Matrix4::makeTranslation(Cvec3(0.0, 8, -2.0));  // frame matrix of light/sun
+static Matrix4 g_objectRbt = Matrix4::makeTranslation(Cvec3(0,2,0)) * Matrix4::makeYRotation(45);
+static Matrix4 g_lightRbt = Matrix4::makeTranslation(Cvec3(0.0, 7, 1.0));  // frame matrix of light/sun
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -243,14 +243,14 @@ static void initCubes() {
   g_cube.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
 }
 
-static void initSpheres() { //why the fuck does this segfault
+static void initSpheres() {
   int ibLen, vbLen;
-  getSphereVbIbLen(1, 1, vbLen, ibLen);
+  getSphereVbIbLen(24, 24, vbLen, ibLen);
 
   vector<VertexPNX> vtx(vbLen);
   vector<unsigned short> idx(ibLen);
 
-  makeSphere(1, 1, 1, vtx.begin(), idx.begin());
+  makeSphere(1, 24, 24, vtx.begin(), idx.begin());
   g_sphere.reset(new Geometry(&vtx[0], &idx[0], vbLen, ibLen));
 }
 
@@ -316,17 +316,20 @@ static void drawScene() {
 
   // draw blocks
   // ==========
-  MVM = invEyeRbt * (g_objectRbt * Matrix4::makeScale(Cvec3(2,2,2)));
-  NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
-  safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
-  safe_glUniform1i(curSS.h_uTexUnit0, 1); // texture unit 1 for cube
-  g_cube->draw(curSS);
+  Matrix4 affectors[9] = { // scales and translations for all the cubes
+    Matrix4::makeScale(Cvec3(2,2,2)),
+    Matrix4::makeTranslation(Cvec3(0, 0, -2)),
+    Matrix4::makeTranslation(Cvec3(0, 0, 2)),
+    Matrix4::makeTranslation(Cvec3(2, 0, 0)),
+    Matrix4::makeTranslation(Cvec3(-2, 0, 0)),
+    Matrix4::makeTranslation(Cvec3(0, 0, -3.5)) * Matrix4::makeScale(Cvec3(0.5,0.5,0.5)),
+    Matrix4::makeTranslation(Cvec3(0, 0, 3.5)) * Matrix4::makeScale(Cvec3(0.5,0.5,0.5)),
+    Matrix4::makeTranslation(Cvec3(3.5, 0, 0)) * Matrix4::makeScale(Cvec3(0.5,0.5,0.5)),
+    Matrix4::makeTranslation(Cvec3(-3.5, 0, 0)) * Matrix4::makeScale(Cvec3(0.5,0.5,0.5))
+  };
 
-  Cvec3 translations[4] = {Cvec3(0, 0, -2), Cvec3(0, 0, 2), Cvec3(2, 0, 0), Cvec3(-2, 0, 0)};
-
-  for (int i = 0; i < 4; i++) {
-    MVM = invEyeRbt * (g_objectRbt * Matrix4::makeTranslation(translations[i]));
+  for (int i = 0; i < 9; i++) {
+    MVM = invEyeRbt * (g_objectRbt * affectors[i]);
     NMVM = normalMatrix(MVM);
     sendModelViewNormalMatrix(curSS, MVM, NMVM);
     safe_glUniform3f(curSS.h_uColor, 1.0, 0.0, 0.0);
@@ -336,9 +339,6 @@ static void drawScene() {
 
   // draw shadows
   // ==========
-
-  Cvec4 object_point = Cvec4(g_objectRbt(0,3), g_objectRbt(1,3), g_objectRbt(2,3), 1);
-
   Matrix4 shadowtranslation(0);
   shadowtranslation(0,0) = g_lightRbt(1, 3);
   shadowtranslation(0,1) = -g_lightRbt(0, 3);
@@ -347,24 +347,13 @@ static void drawScene() {
   shadowtranslation(3,1) = -1;
   shadowtranslation(3,3) = g_lightRbt(1, 3);
 
-  MVM = invEyeRbt * shadowtranslation * (g_objectRbt * Matrix4::makeScale(Cvec3(2,2,2)));
-  sendModelViewMatrix(curSS, MVM);
-  safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
-  safe_glUniform1i(curSS.h_uTexUnit0, 0.5);
-  g_cube->draw(curSS);
-
-  for (int i = 0; i < 4; i++) {
-    MVM = invEyeRbt * shadowtranslation * (g_objectRbt * Matrix4::makeTranslation(translations[i]));
+  for (int i = 0; i < 9; i++) {
+    MVM = invEyeRbt * shadowtranslation * (g_objectRbt * affectors[i]); // credit to Daniel Hakimian for hints
     sendModelViewMatrix(curSS, MVM);
     safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
     safe_glUniform1i(curSS.h_uTexUnit0, 0.5);
     g_cube->draw(curSS);
   }
-
-  // maybe draw a square for the shadow of each face of the boxes
-  // how is this possible if you can only draw boxes
-
-  // how am i supposed to have the first idea how to do this
 
   // draw sun
   // ==========
@@ -372,12 +361,12 @@ static void drawScene() {
   glUseProgram(sunSS.program); // select shader we want to use
   sendProjectionMatrix(sunSS, projmat); // send projection matrix to shader
   safe_glUniform3f(sunSS.h_uLight, eyeLight[0], eyeLight[1], eyeLight[2]);
-  MVM = invEyeRbt * g_lightRbt;
+  MVM = invEyeRbt * g_lightRbt * Matrix4::makeScale(Cvec3(.5, .5, .5));
   NMVM = normalMatrix(MVM);
   sendModelViewNormalMatrix(sunSS, MVM, NMVM);
   safe_glUniform3f(sunSS.h_uColor, 1.0, 0.5, 0.0);
   safe_glUniform1i(sunSS.h_uTexUnit0, 1); // texture unit 1 for cube
-  g_cube->draw(sunSS);  
+  g_sphere->draw(sunSS);  
 }
 
 static void display() {
@@ -539,6 +528,7 @@ static void initShaders() {
 static void initGeometry() {
   initGround();
   initCubes();
+  initSpheres();
 }
 
 static void loadTexture(GLuint texHandle, const char *ppmFilename) {
