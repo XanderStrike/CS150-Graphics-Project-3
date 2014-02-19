@@ -59,7 +59,7 @@ static float g_frustFovY = g_frustMinFov; // FOV in y direction (updated by upda
 
 static const float g_frustNear = -0.1;    // near plane
 static const float g_frustFar = -50.0;    // far plane
-static const float g_groundY = 0.0;       // y coordinate of the ground
+static const float g_groundY = -0.01;       // y coordinate of the ground
 static const float g_groundSize = 40.0;   // half the ground length
 
 static float zoom = 1.0;
@@ -215,7 +215,7 @@ static shared_ptr<Geometry> g_ground, g_cube, g_sphere;
 
 static Matrix4 g_eyeRbt = Matrix4::makeTranslation(Cvec3(0.0, 3.25, 10.0));
 static Matrix4 g_objectRbt = Matrix4::makeTranslation(Cvec3(0,2,0));  // object frame matrix
-static Matrix4 g_lightRbt = Matrix4::makeTranslation(Cvec3(0.0, 8, 0.0));  // frame matrix of light/sun
+static Matrix4 g_lightRbt = Matrix4::makeTranslation(Cvec3(0.0, 8, -2.0));  // frame matrix of light/sun
 
 ///////////////// END OF G L O B A L S //////////////////////////////////////////////////
 
@@ -269,6 +269,13 @@ static void sendModelViewNormalMatrix(const ShaderState& SS, const Matrix4& MVM,
 
   NMVM.writeToColumnMajorMatrix(glmatrix); // send NMVM
   safe_glUniformMatrix4fv(SS.h_uNormalMatrix, glmatrix);
+}
+
+// takes model view matrix to the shaders
+static void sendModelViewMatrix(const ShaderState& curSS, const Matrix4& MVM) {
+  GLfloat glmatrix[16];
+  MVM.writeToColumnMajorMatrix(glmatrix); // send MVM
+  safe_glUniformMatrix4fv(curSS.h_uModelViewMatrix, glmatrix);
 }
 
 // update g_frustFovY from g_frustMinFov, g_windowWidth, and g_windowHeight
@@ -332,7 +339,7 @@ static void drawScene() {
 
   Cvec4 object_point = Cvec4(g_objectRbt(0,3), g_objectRbt(1,3), g_objectRbt(2,3), 1);
 
-  Matrix4 shadowtranslation;
+  Matrix4 shadowtranslation(0);
   shadowtranslation(0,0) = g_lightRbt(1, 3);
   shadowtranslation(0,1) = -g_lightRbt(0, 3);
   shadowtranslation(2,1) = -g_lightRbt(2, 3);
@@ -340,21 +347,24 @@ static void drawScene() {
   shadowtranslation(3,1) = -1;
   shadowtranslation(3,3) = g_lightRbt(1, 3);
 
-  Cvec4 shadowcoords = shadowtranslation * object_point;
-
-  MVM = invEyeRbt * (Matrix4::makeTranslation(Cvec3(shadowcoords(0), 0, shadowcoords(2))) * Matrix4::makeScale(Cvec3(1, 0.1, 1)));
-  NMVM = normalMatrix(MVM);
-  sendModelViewNormalMatrix(curSS, MVM, NMVM);
+  MVM = invEyeRbt * shadowtranslation * (g_objectRbt * Matrix4::makeScale(Cvec3(2,2,2)));
+  sendModelViewMatrix(curSS, MVM);
   safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
-  safe_glUniform1i(curSS.h_uTexUnit0, 0.5); // texture unit 1 for cube
+  safe_glUniform1i(curSS.h_uTexUnit0, 0.5);
   g_cube->draw(curSS);
 
+  for (int i = 0; i < 4; i++) {
+    MVM = invEyeRbt * shadowtranslation * (g_objectRbt * Matrix4::makeTranslation(translations[i]));
+    sendModelViewMatrix(curSS, MVM);
+    safe_glUniform3f(curSS.h_uColor, 0.0, 0.0, 0.0);
+    safe_glUniform1i(curSS.h_uTexUnit0, 0.5);
+    g_cube->draw(curSS);
+  }
 
   // maybe draw a square for the shadow of each face of the boxes
   // how is this possible if you can only draw boxes
 
   // how am i supposed to have the first idea how to do this
-
 
   // draw sun
   // ==========
